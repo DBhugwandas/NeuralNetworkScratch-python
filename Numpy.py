@@ -7,7 +7,7 @@ my_data = genfromtxt('diabetes.csv', delimiter=',')[1:, :]
 Y = my_data[:, -1]
 X = my_data[:, :-1]
 
-# Preparing the data to be iterated - Accepts in an array
+# Preparing the data to be iterated - Accepts in an array and returns a list of vectos
 
 
 def DataPrep(Classes, yVal, XVal):
@@ -35,3 +35,5 @@ def DataPrep(Classes, yVal, XVal):
 
 
 Xval, yval = DataPrep(2, Y, X)
+
+print(Xval[1])
