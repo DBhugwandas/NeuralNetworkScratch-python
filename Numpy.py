@@ -7,33 +7,13 @@ my_data = genfromtxt('diabetes.csv', delimiter=',')[1:, :]
 Y = my_data[:, -1]
 X = my_data[:, :-1]
 
-# Preparing the data to be iterated - Accepts in an array and returns a list of vectos
+NbrNeurons = [3, 2, 6, 2]
 
+ThetaMatrix = [np.random.random((NbrNeurons[i + 1], NbrNeurons[i] + 1)) for i in range(len(NbrNeurons) - 1)]
 
-def DataPrep(Classes, yVal, XVal):
+ActivationMatrix = [np.zeros((NbrNeurons[i] + 1, 1)) if i <= (len(NbrNeurons) - 2) else np.zeros((NbrNeurons[i], 1)) for i in range(len(NbrNeurons))]
 
-    y_elements = []
-    X_elements = []
+for i in range(len(ActivationMatrix) - 1):
+    ActivationMatrix[i][0] = 1
 
-    for i in range(yVal.size):
-
-        # Y Value Data Prep
-        Ypos = int(yVal[i])
-        YMatrix = np.zeros(Classes)
-
-        if Classes == 1:
-            YMatrix[0] = Ypos
-            y_elements.append(YMatrix)
-        else:
-            YMatrix[Ypos - 1] = 1
-            y_elements.append(YMatrix)
-
-        # X Value Data Prep
-        X_elements.append(XVal[i, :].transpose())
-
-    return X_elements, y_elements
-
-
-Xval, yval = DataPrep(2, Y, X)
-
-print(Xval[1])
+ErrorMatrix = [np.zeros((NbrNeurons[i + 1], 1)) for i in range(len(NbrNeurons) - 1)]

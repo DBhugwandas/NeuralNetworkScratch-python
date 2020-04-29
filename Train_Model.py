@@ -9,41 +9,24 @@ class NeuralNetwork():
     # Defining model architecture
     def __init__(self, NbrNeurons):
 
-        self.ThetaCount = len(NbrNeurons) - 1
         self.NbrNeurons = NbrNeurons
-        self.ThetaSize = []
-        self.ThetaMatrix = []
-
-        # Generating Theta  size list
-        self.ThetaSize = [(self.NbrNeurons[i + 1], self.NbrNeurons[i] + 1) for i in range(self.ThetaCount)]
 
         # Creating a list of theta matrices and intializing them
-        self.ThetaMatrix = [(np.random.random(self.ThetaSize[i]) * 2 * 0.12 - 0.12) for i in range(len(self.ThetaSize))]
+        self.ThetaMatrix = [(np.random.random((self.NbrNeurons[i + 1], self.NbrNeurons[i] + 1)) * 2 * 0.12 - 0.12) for i in range(len(self.NbrNeurons) - 1)]
 
         # Creating the Activation Node Matrix including the bias term
-        self.ActivationMatrix = [np.zeros((i + 1, 1)) for i in NbrNeurons]
-        # If last layer then no bias term
-        self.ActivationMatrix[-1] = np.zeros((NbrNeurons[-1], 1))
+        self.ActivationMatrix = [np.zeros((self.NbrNeurons[i] + 1, 1)) if i <= (len(self.NbrNeurons) - 2) else np.zeros((self.NbrNeurons[i], 1)) for i in range(len(self.NbrNeurons))]
 
-        # Node Error Matrix - DeepCopy as same dimensions as Activation Matrix
-        self.ErrorMatrix = copy.deepcopy(self.ActivationMatrix)
-        # Deleting the first error matrix as we dont have an error term for the input
-        del self.ErrorMatrix[0]
-
-        # Gradient Accumulator - same dimensions as theta matrix
-        self.GradientAcc = copy.deepcopy(self.ThetaMatrix)
-
-        # Pre-loading the bias term = 1
         for i in range(len(self.ActivationMatrix) - 1):
             self.ActivationMatrix[i][0] = 1
 
-    # Training the model and performing backpropagation
-    def Train(self, XVal, yVal, lamb, alpha, iters):
+        # Error Matrix Exluding bias terms
+        self.ErrorMatrix = [np.zeros((self.NbrNeurons[i + 1], 1)) for i in range(len(self.NbrNeurons) - 1)]
 
-        # Nbr Training Examples
-        self.m = XVal.shape[0]
+        # Gradient Accumulator - same dimensions as theta matrix
+        self.GradientAcc = [np.zeros((self.NbrNeurons[i + 1], self.NbrNeurons[i] + 1)) for i in range(len(self.NbrNeurons) - 1)]
 
-        # Prepare the data to be iterated over, one example per time ------ Needs Work
+    def DataPrep1(self, XVal, yVal):
 
         y_elements = []
         X_elements = []
@@ -64,75 +47,87 @@ class NeuralNetwork():
             # X Value Data Prep
             X_elements.append(XVal[i, :].transpose())
 
-        XVal = X_elements[10].reshape(self.NbrNeurons[0], 1)
-        yVal = y_elements[10].reshape(self.NbrNeurons[-1], 1)
+        return X_elements, y_elements
 
-        # ----- Item iteration loop should start here
+    # Training the model and performing backpropagation
+    def Train(self, XVal, yVal, lamb, alpha, iters):
 
-        # Setting the X_Val as the first Activation Layer - Note the first term is a bias
-        self.ActivationMatrix[0][1:] = XVal
+        # Multiple training iteractions on the training set
+        self.m = XVal.shape[0]
 
-        # FeedFoward Network - One observation at a time
-        for i in range(len(self.NbrNeurons) - 1):
+        X_elements, y_elements = self.DataPrep1(XVal, yVal)
 
-            # For the last matrix/output matrix there is no bias term
-            # Hence we don't need to only the second element onwards (no bias in output)
+        for obs in range(len(X_elements)):
 
-            if i < len(self.NbrNeurons) - 2:
+            XVal = X_elements[obs].reshape(self.NbrNeurons[0], 1)
+            print(XVal.size)
+            yVal = y_elements[obs].reshape(self.NbrNeurons[-1], 1)
 
-                self.ActivationMatrix[i + 1][1:] = self.ThetaMatrix[i] @ self.ActivationMatrix[i]
-                # Applying the sigmoid function
-                self.ActivationMatrix[i + 1][1:] = 1 / (1 + np.exp(-self.ActivationMatrix[i + 1][1:]))
+            # ----- Item iteration loop should start here
 
-            # If output node we dont have a bias term
-            elif i == len(self.NbrNeurons) - 2:
-                self.ActivationMatrix[i + 1] = self.ThetaMatrix[i] @ self.ActivationMatrix[i]
-                # Applying the sigmoid function
-                self.ActivationMatrix[i + 1] = 1 / (1 + np.exp(-self.ActivationMatrix[i + 1]))
+            # Setting the X_Val as the first Activation Layer - Note the first term is a bias
+            self.ActivationMatrix[0][1:] = XVal
 
-        # Calculating Error Matrix - going from last node to hidden layers
-        # We do not calculate the error term for the bias unit or the input layer
+            # FeedFoward Network - One observation at a time
+            for i in range(len(self.NbrNeurons) - 1):
 
-        for i in range(len(self.NbrNeurons) - 1):
+                # For the last matrix/output matrix there is no bias term
+                # Hence we don't need to only the second element onwards (no bias in output)
 
-            NodeSelect = -(i + 1)
+                if i < len(self.NbrNeurons) - 2:
 
-            # If last node/output node compute cost as follows
-            if NodeSelect == -1:
-                self.ErrorMatrix[-1] = self.ActivationMatrix[-1] - yVal
+                    self.ActivationMatrix[i + 1][1:] = np.dot(self.ThetaMatrix[i], self.ActivationMatrix[i])
+                    # Applying the sigmoid function
+                    self.ActivationMatrix[i + 1][1:] = 1 / (1 + np.exp(-self.ActivationMatrix[i + 1][1:]))
 
-            # Excludes error on bias term for 1 layer before output as output does not have Error term for bias unit
-            elif NodeSelect == -2:
-                self.ErrorMatrix[NodeSelect][1:] = (self.ThetaMatrix[NodeSelect + 1][:, 1:] .transpose() @ self.ErrorMatrix[NodeSelect + 1]) * (self.ActivationMatrix[NodeSelect][1:] * (1 - self.ActivationMatrix[NodeSelect][1:]))
+                # If output node we dont have a bias term
+                elif i == len(self.NbrNeurons) - 2:
+                    self.ActivationMatrix[i + 1] = np.dot(self.ThetaMatrix[i], self.ActivationMatrix[i])
+                    # Applying the sigmoid function
+                    self.ActivationMatrix[i + 1] = 1 / (1 + np.exp(-self.ActivationMatrix[i + 1]))
 
-            # Excludes error on bias term for 2 layers + before output node
-            else:
-                self.ErrorMatrix[NodeSelect][1:] = (self.ThetaMatrix[NodeSelect + 1][:, 1:] .transpose() @ self.ErrorMatrix[NodeSelect + 1][1:]) * (self.ActivationMatrix[NodeSelect][1:] * (1 - self.ActivationMatrix[NodeSelect][1:]))
+            # Calculating Error Matrix - going from last node to hidden layers
+            # We do not calculate the error term for the bias unit or the input layer
 
-        # Computing the Delta Terms(Gradient Accumulator)
+            for i in range(len(self.NbrNeurons) - 1):
 
-        for i in range(len(self.NbrNeurons) - 1):
+                NodeSelect = -(i + 1)
 
-            # Exlude error term on bias unit
-            if i < len(self.NbrNeurons) - 2:
-                self.GradientAcc[i] = self.GradientAcc[i] + (self.ErrorMatrix[i][1:] @ self.ActivationMatrix[i].transpose())
+                # If last node/output node compute cost as follows
+                if NodeSelect == -1:
+                    self.ErrorMatrix[-1] = self.ActivationMatrix[-1] - yVal
 
-            # No Error term for bias unit on output unit
-            else:
-                self.GradientAcc[i] = self.GradientAcc[i] + (self.ErrorMatrix[i] @ self.ActivationMatrix[i].transpose())
+                # Excludes error on bias term for 1 layer before output as output does not have Error term for bias unit
+                else:
+                    self.ErrorMatrix[NodeSelect] = np.dot(self.ThetaMatrix[-1][:, 1:].transpose(), self.ErrorMatrix[-1]) * (self.ActivationMatrix[NodeSelect][1:] * (1 - self.ActivationMatrix[NodeSelect][1:]))
+
+            # Computing the Delta Terms(Gradient Accumulator)
+
+            for i in range(len(self.NbrNeurons) - 1):
+
+                # Exlude error term on bias unit
+                if i < len(self.NbrNeurons) - 2:
+                    self.GradientAcc[i] = self.GradientAcc[i] + np.dot(self.ErrorMatrix[i][1:], self.ActivationMatrix[i].transpose())
+
+                # No Error term for bias unit on output unit
+                else:
+                    self.GradientAcc[i] = self.GradientAcc[i] + np.dot(self.ErrorMatrix[i], self.ActivationMatrix[i].transpose())
 
         # Computing the partial derivative (outside loop) and performing gradient descent
         self.PartialDerive = []
-        self.m = 100
         for i in range(len(self.GradientAcc)):
-            print(i)
 
             # Setting all theta bias term to zero as we dont regularize that term
             theta_adj = copy.deepcopy(self.ThetaMatrix[i])
             theta_adj[:, 0] = 0;
 
-            Partial = 1 / self.m * self.GradientAcc[i] + lamb / self.m * theta_adj
+            # Compute partial derivative term and appending to a list
+            Partial = (1 / self.m) * self.GradientAcc[i] + (lamb / self.m) * theta_adj
             self.PartialDerive.append(Partial)
+
+        # Perform gradient descent and return the new theta matrix
+        for i in range(len(self.ThetaMatrix)):
+            self.ThetaMatrix[i] = self.ThetaMatrix[i] - alpha * (self.PartialDerive[i])
 
 
 import numpy as np
@@ -146,9 +141,5 @@ X = my_data[:, :-1]
 
 
 Model = NeuralNetwork([8, 2, 1])
-#XVal = np.array([[0], [0], [0]])
-#yVal = np.array([[1], [0]])
 
-
-Model.Train(X, Y, 0, 0, 0)
-print(Model.PartialDerive[1])
+Model.Train(X, Y, 1, 0.1, 10)
