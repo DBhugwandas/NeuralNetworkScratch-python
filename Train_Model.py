@@ -98,6 +98,7 @@ class NeuralNetwork():
                     self.ErrorMatrix[-1] = self.ActivationMatrix[-1] - yVal
 
                 # Excludes error on bias term for 1 layer before output as output does not have Error term for bias unit
+                #NEED TO FIX for mutliple layers
                 else:
                     self.ErrorMatrix[NodeSelect] = np.dot(self.ThetaMatrix[-1][:, 1:].transpose(), self.ErrorMatrix[-1]) * (self.ActivationMatrix[NodeSelect][1:] * (1 - self.ActivationMatrix[NodeSelect][1:]))
 
